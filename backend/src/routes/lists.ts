@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { nanoid } from "nanoid";
-import { prisma } from "../config/prisma.js";
-import { requireAuth, AuthRequest } from "../middleware/auth.js";
+import { prisma } from "../config/prisma";
+import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 

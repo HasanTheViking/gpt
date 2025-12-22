@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
-import { env } from "./config/env.js";
-import authRoutes from "./routes/auth.js";
-import listRoutes from "./routes/lists.js";
-import itemRoutes from "./routes/items.js";
+import { env } from "./config/env";
+import authRoutes from "./routes/auth";
+import listRoutes from "./routes/lists";
+import itemRoutes from "./routes/items";
 
 const app = express();
 
@@ -16,11 +16,20 @@ app.use("/auth", authRoutes);
 app.use("/lists", listRoutes);
 app.use("/", itemRoutes);
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
-  res.status(500).json({ message: "Unexpected server error" });
-});
+app.use(
+  (
+    err: unknown,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    console.error(err);
+    res.status(500).json({ message: "Unexpected server error" });
+  }
+);
 
 app.listen(env.port, () => {
-  console.log(`Smart Shopping List API running on http://localhost:${env.port}`);
+  console.log(
+    `Smart Shopping List API running on http://localhost:${env.port}`
+  );
 });
