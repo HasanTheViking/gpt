@@ -51,6 +51,24 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   res.status(204).send();
 });
 
+// DELETE /lists/:id
+router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const id = req.params.id;
+
+  const list = await prisma.shoppingList.findFirst({
+    where: { id, userId }
+  });
+
+  if (!list) return res.status(404).json({ message: "Zoznam sa nenašiel" });
+
+  await prisma.item.deleteMany({ where: { listId: id } });
+  await prisma.shoppingList.delete({ where: { id } });
+
+  res.json({ ok: true });
+});
+
+
 // Public read-only access via shareToken
 router.get("/shared/:shareToken", async (req, res) => {
   const list = await prisma.shoppingList.findUnique({

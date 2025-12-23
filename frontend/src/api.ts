@@ -1,10 +1,12 @@
 import axios from "axios";
 
+const PROD_API = "https://smart-shopping-backend-tet6.onrender.com";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000",
+  baseURL: import.meta.env.VITE_API_URL ?? PROD_API
 });
 
-// Always attach token (if present) for every request
+// VŽDY priloží token, ak existuje
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,15 +16,8 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export function setAuthToken(token?: string) {
-  // Keep this helper if the rest of the app uses it
-  if (token) {
-    localStorage.setItem("token", token);
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
-  } else {
-    localStorage.removeItem("token");
-    delete api.defaults.headers.common.Authorization;
-  }
+export function setAuthToken(_token?: string) {
+  // môže zostať prázdne alebo to môžeš úplne odstrániť z App.tsx
 }
 
 export default api;
