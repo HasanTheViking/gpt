@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "ts-node --transpileOnly src/server.ts",
-    "build": "tsc",
+    "build": "node ./node_modules/prisma/build/index.js generate && tsc",
     "start": "node dist/server.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate"

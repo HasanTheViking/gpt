@@ -72,16 +72,6 @@ export default function ListsPage() {
     return lists.filter((l) => l.title.toLowerCase().includes(q));
   }, [lists, query]);
 
-  <div className="flex items-center gap-2">
-  <h1 className="text-2xl font-semibold text-slate-800">{list.title}</h1>
-  <button
-    onClick={deleteList}
-    className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-700 hover:bg-red-100"
-  >
-    Zmazať zoznam
-  </button>
-</div>
-
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "../config/prisma";
+import prisma from "../prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { env } from "../config/env";
 
@@ -85,14 +85,14 @@ router.get("/suggestions", requireAuth, async (req: AuthRequest, res) => {
   const stats = await prisma.itemStats.findMany({ where: { userId: req.userId } });
 
   const suggestions = stats
-    .filter((stat) => {
+    .filter((stat: any) => {
       if (stat.timesBought < env.suggestion.frequentThreshold) return false;
       if (!stat.lastBoughtAt) return false;
       const diffDays =
         (now.getTime() - stat.lastBoughtAt.getTime()) / (1000 * 60 * 60 * 24);
       return diffDays >= (stat.avgBuyIntervalDays ?? env.suggestion.defaultIntervalDays);
     })
-    .map((stat) => ({
+    .map((stat: any) => ({
       name: stat.name,
       lastBoughtAt: stat.lastBoughtAt,
       timesBought: stat.timesBought
