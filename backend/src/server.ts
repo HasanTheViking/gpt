@@ -7,28 +7,45 @@ import itemRoutes from "./routes/items";
 
 const app = express();
 
-// CORS: allow local dev + your Vercel frontend
+/**
+ * CORS pre:
+ * - Vercel web (https://*.vercel.app alebo tvoj konkrétny domain)
+ * - Capacitor Android WebView (https://localhost alebo capacitor://localhost)
+ * - lokálny dev (http://localhost:5173)
+ *
+ * Poznámka: CORS musí správne odpovedať aj na preflight OPTIONS.
+ */
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://gpt-beta-taupe.vercel.app",
+  "http://localhost",
+  "https://localhost",
+  "capacitor://localhost",
+  "ionic://localhost",
+  // sem si pridaj svoj Vercel domain (odporúčam priamo ten konkrétny)
+  "https://gpt-beta-taupe.vercel.app"
 ];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests without Origin (health checks, curl, server-to-server)
+    origin(origin, callback) {
+      // Povoliť aj requesty bez Origin (napr. curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Povoliť presné zhody alebo všetky vercel preview domény
+      const isVercelPreview = origin.endsWith(".vercel.app");
+      const isAllowed = allowedOrigins.includes(origin) || isVercelPreview;
 
+      if (isAllowed) return callback(null, true);
       return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204
   })
 );
 
-// Handle preflight requests explicitly
+// Preflight odpovede (niekedy to pomôže na niektorých hostoch/proxy)
 app.options("*", cors());
 
 app.use(express.json());
