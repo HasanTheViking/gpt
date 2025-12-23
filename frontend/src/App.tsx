@@ -8,39 +8,62 @@ import "./index.css";
 type User = { id: string; email: string };
 
 function App() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Load token once on app start and validate it via /auth/me
   useEffect(() => {
-    if (token) {
-      setAuthToken(token);
-      api
-        .get("/auth/me")
-        .then((res) => setUser(res.data))
-        .catch(() => {
-          setToken(null);
-          localStorage.removeItem("token");
-        })
-        .finally(() => setLoading(false));
-    } else {
+    const t = localStorage.getItem("token");
+    if (!t) {
       setAuthToken(undefined);
+      setToken(null);
+      setUser(null);
       setLoading(false);
+      return;
     }
-  }, [token]);
 
-  const handleAuth = async (mode: "login" | "register", email: string, password: string) => {
+    setAuthToken(t);
+    setToken(t);
+
+    api
+      .get("/auth/me")
+      .then((res) => setUser(res.data))
+      .catch(() => {
+        setAuthToken(undefined);
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleAuth = async (
+    mode: "login" | "register",
+    email: string,
+    password: string
+  ) => {
     setAuthError(null);
     try {
       const res = await api.post(`/auth/${mode}`, { email, password });
       const newToken = res.data.token as string;
-      localStorage.setItem("token", newToken);
+
+      // Persist + set default header
+      setAuthToken(newToken);
       setToken(newToken);
-      setUser(res.data.user);
+
+      // Always fetch the current user using the token (prevents race conditions)
+      const me = await api.get("/auth/me");
+      setUser(me.data);
     } catch (error: any) {
       setAuthError(error?.response?.data?.message ?? "Unable to authenticate");
     }
+  };
+
+  const logout = () => {
+    setAuthToken(undefined);
+    setToken(null);
+    setUser(null);
   };
 
   if (loading) {
@@ -50,12 +73,6 @@ function App() {
   if (!token || !user) {
     return <AuthScreen onAuth={handleAuth} error={authError} />;
   }
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
-    setUser(null);
-  };
 
   return (
     <BrowserRouter>
@@ -76,6 +93,7 @@ function App() {
             </div>
           </div>
         </header>
+
         <main className="max-w-5xl mx-auto px-4 py-6">
           <Routes>
             <Route path="/" element={<ListsPage />} />
@@ -90,7 +108,7 @@ function App() {
 
 function AuthScreen({
   onAuth,
-  error
+  error,
 }: {
   onAuth: (mode: "login" | "register", email: string, password: string) => void;
   error: string | null;
@@ -105,6 +123,7 @@ function AuthScreen({
         <h1 className="text-xl font-semibold mb-4 text-slate-800 text-center">
           {mode === "login" ? "Welcome back" : "Create your account"}
         </h1>
+
         <div className="space-y-3">
           <label className="block text-sm">
             <span className="text-slate-600">Email</span>
@@ -112,8 +131,10 @@ function AuthScreen({
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
             />
           </label>
+
           <label className="block text-sm">
             <span className="text-slate-600">Password</span>
             <input
@@ -121,20 +142,26 @@ function AuthScreen({
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </label>
+
           {error && <div className="text-red-600 text-sm">{error}</div>}
+
           <button
             onClick={() => onAuth(mode, email, password)}
             className="w-full bg-slate-900 text-white rounded-lg py-2 font-medium hover:bg-slate-800"
           >
             {mode === "login" ? "Log in" : "Sign up"}
           </button>
+
           <button
             className="w-full text-sm text-slate-700 underline"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
           >
-            {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
+            {mode === "login"
+              ? "Need an account? Sign up"
+              : "Already have an account? Log in"}
           </button>
         </div>
       </div>
