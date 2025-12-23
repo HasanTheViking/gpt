@@ -1,82 +1,112 @@
 import { Router } from "express";
-import { nanoid } from "nanoid";
-import { prisma } from "../config/prisma";
+import prisma from "../prisma"; // ak máš prisma inde, uprav cestu
 import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
+/**
+ * GET /lists
+ * Vráti všetky listy usera zoradené podľa position ASC.
+ */
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
   const lists = await prisma.shoppingList.findMany({
-    where: { userId: req.userId },
-    orderBy: { createdAt: "desc" }
+    where: { userId, isArchived: false },
+    orderBy: { position: "asc" },
+    include: { items: true }
   });
   res.json(lists);
 });
 
-router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { title } = req.body;
-  if (!title) return res.status(400).json({ message: "Title is required" });
-  const list = await prisma.shoppingList.create({
-    data: { title, userId: req.userId!, shareToken: nanoid(10) }
-  });
-  res.status(201).json(list);
-});
-
+/**
+ * GET /lists/:id
+ * Detail listu (vrátane items).
+ */
 router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
-  const list = await prisma.shoppingList.findFirst({
-    where: { id: req.params.id, userId: req.userId },
-    include: { items: { orderBy: { createdAt: "desc" } } }
-  });
-  if (!list) return res.status(404).json({ message: "List not found" });
-  res.json(list);
-});
-
-router.put("/:id", requireAuth, async (req: AuthRequest, res) => {
-  const { title, isArchived } = req.body;
-  const list = await prisma.shoppingList.updateMany({
-    where: { id: req.params.id, userId: req.userId },
-    data: { title, isArchived }
-  });
-  if (list.count === 0) return res.status(404).json({ message: "List not found" });
-  const updated = await prisma.shoppingList.findUnique({ where: { id: req.params.id } });
-  res.json(updated);
-});
-
-router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
-  await prisma.item.deleteMany({ where: { listId: req.params.id } });
-  const deleted = await prisma.shoppingList.deleteMany({
-    where: { id: req.params.id, userId: req.userId }
-  });
-  if (deleted.count === 0) return res.status(404).json({ message: "List not found" });
-  res.status(204).send();
-});
-
-// DELETE /lists/:id
-router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
-  const userId = req.user!.id;
+  const userId = req.userId!;
   const id = req.params.id;
 
   const list = await prisma.shoppingList.findFirst({
-    where: { id, userId }
+    where: { id, userId },
+    include: { items: true }
   });
 
   if (!list) return res.status(404).json({ message: "Zoznam sa nenašiel" });
+  res.json(list);
+});
 
-  await prisma.item.deleteMany({ where: { listId: id } });
-  await prisma.shoppingList.delete({ where: { id } });
+/**
+ * POST /lists
+ * Vytvorí nový list na konci (position = max + 1).
+ * Body: { title: string }
+ */
+router.post("/", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const title = String(req.body?.title ?? "").trim();
+
+  if (!title) return res.status(400).json({ message: "Názov zoznamu je povinný" });
+
+  const last = await prisma.shoppingList.findFirst({
+    where: { userId },
+    orderBy: { position: "desc" },
+    select: { position: true }
+  });
+
+  const position = (last?.position ?? -1) + 1;
+
+  const created = await prisma.shoppingList.create({
+    data: { title, userId, position }
+  });
+
+  res.status(201).json(created);
+});
+
+/**
+ * DELETE /lists/:id
+ * Zmaže list (a vďaka cascade aj items).
+ */
+router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const id = req.params.id;
+
+  // ochrana: zmaž iba ak patrí userovi
+  const existing = await prisma.shoppingList.findFirst({
+    where: { id, userId },
+    select: { id: true }
+  });
+
+  if (!existing) return res.status(404).json({ message: "Zoznam sa nenašiel" });
+
+  await prisma.shoppingList.delete({
+    where: { id }
+  });
 
   res.json({ ok: true });
 });
 
+/**
+ * PUT /lists/reorder
+ * Body: { ids: string[] }
+ * Uloží poradie podľa indexu v poli.
+ */
+router.put("/reorder", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const ids = req.body?.ids as unknown;
 
-// Public read-only access via shareToken
-router.get("/shared/:shareToken", async (req, res) => {
-  const list = await prisma.shoppingList.findUnique({
-    where: { shareToken: req.params.shareToken },
-    include: { items: true }
-  });
-  if (!list) return res.status(404).json({ message: "List not found" });
-  res.json({ id: list.id, title: list.title, items: list.items });
+  if (!Array.isArray(ids) || !ids.every((x) => typeof x === "string")) {
+    return res.status(400).json({ message: "ids musí byť pole stringov" });
+  }
+
+  await prisma.$transaction(
+    ids.map((listId, index) =>
+      prisma.shoppingList.updateMany({
+        where: { id: listId, userId },
+        data: { position: index }
+      })
+    )
+  );
+
+  res.json({ ok: true });
 });
 
 export default router;
