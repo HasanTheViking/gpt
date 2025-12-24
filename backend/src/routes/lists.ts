@@ -13,9 +13,26 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const lists = await prisma.shoppingList.findMany({
     where: { userId, isArchived: false },
     orderBy: { position: "asc" },
-    include: { items: true }
+    include: { items: true },
   });
   res.json(lists);
+});
+
+/**
+ * GET /lists/:id
+ * Detail zoznamu (vrátane items).
+ */
+router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const id = req.params.id;
+
+  const list = await prisma.shoppingList.findFirst({
+    where: { id, userId },
+    include: { items: true },
+  });
+
+  if (!list) return res.status(404).json({ message: "Zoznam sa nenašiel" });
+  res.json(list);
 });
 
 /**
@@ -30,15 +47,15 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   if (!title) return res.status(400).json({ message: "Názov zoznamu je povinný" });
 
   const last = await prisma.shoppingList.findFirst({
-    where: { userId },
+    where: { userId, isArchived: false },
     orderBy: { position: "desc" },
-    select: { position: true }
+    select: { position: true },
   });
 
   const position = (last?.position ?? -1) + 1;
 
   const created = await prisma.shoppingList.create({
-    data: { title, userId, position }
+    data: { title, userId, position },
   });
 
   res.status(201).json(created);
@@ -60,30 +77,13 @@ router.put("/reorder", requireAuth, async (req: AuthRequest, res) => {
   await prisma.$transaction(
     ids.map((listId, index) =>
       prisma.shoppingList.updateMany({
-        where: { id: listId, userId },
-        data: { position: index }
+        where: { id: listId, userId, isArchived: false },
+        data: { position: index },
       })
     )
   );
 
   res.json({ ok: true });
-});
-
-/**
- * GET /lists/:id
- * Detail zoznamu (vrátane items).
- */
-router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
-  const userId = req.userId!;
-  const id = req.params.id;
-
-  const list = await prisma.shoppingList.findFirst({
-    where: { id, userId },
-    include: { items: true }
-  });
-
-  if (!list) return res.status(404).json({ message: "Zoznam sa nenašiel" });
-  res.json(list);
 });
 
 /**
@@ -96,7 +96,7 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
 
   const existing = await prisma.shoppingList.findFirst({
     where: { id, userId },
-    select: { id: true }
+    select: { id: true },
   });
 
   if (!existing) return res.status(404).json({ message: "Zoznam sa nenašiel" });
