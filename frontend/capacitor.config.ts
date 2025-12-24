@@ -1,9 +1,12 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.tvoje.meno.smartlist',
-  appName: 'SmartList',
-  webDir: 'dist'
+  appId: "com.example.smartshopping",
+  appName: "Smart Shopping List",
+  webDir: "dist",
+  server: {
+    cleartext: true
+  }
 };
 
 export default config;

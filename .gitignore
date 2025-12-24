@@ -1,17 +1,33 @@
 # Node
-**/node_modules
-**/dist
+**/node_modules/
+**/dist/
+**/.cache/
+**/.parcel-cache/
+**/.turbo/
+**/.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
 # Env
-backend/.env
-frontend/.env*
-.env
+**/.env
+**/.env.*
+!**/.env.example
 
-# Capacitor / Android
-frontend/android/
+# Prisma generated
+**/node_modules/.prisma/
+**/node_modules/@prisma/
+**/.prisma/
 
-# OS / IDE
+# OS/IDE
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
 
+# Capacitor / Android build artifacts
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
+frontend/android/local.properties
+frontend/android/.idea/
